@@ -1,191 +1,518 @@
 # Product and Technical Decisions
 
-This document outlines the main decisions made while building the Encube take-home project.
+## Overview
 
-The goal was to prioritize a complete and intuitive review workflow within the limited implementation time while keeping the underlying canvas architecture compatible with more advanced 3D use cases.
+This project is a simplified collaborative canvas commenting tool built as part of the Encube take-home exercise.
 
-## 1. React Three Fiber as the Canvas Foundation
+The objective was not to recreate the full feature set of a mature collaboration product such as Figma or Miro. Instead, I focused on implementing a small but coherent interaction loop:
 
-I chose React Three Fiber rather than implementing the canvas entirely with DOM elements.
+1. Navigate an infinite-style canvas
+2. Move design elements independently
+3. Place comments spatially
+4. Open and interact with comment threads
+5. Reply to comments
+6. Resolve and reopen discussions
+7. Filter between open and resolved conversations
 
-Although the current prototype mostly behaves like a 2D design review tool, React Three Fiber provides a real Three.js scene and gives the project a natural path toward richer 3D functionality.
+The implementation was completed within a deliberately limited time window, so I prioritized the parts of the exercise that demonstrate the underlying product and technical concepts rather than breadth of functionality.
 
-This felt particularly appropriate for Encube because the same canvas architecture could later support:
+The main areas I wanted to demonstrate were:
+
+- spatial coordinate handling
+- canvas interaction design
+- separation between navigation and object manipulation
+- annotation placement
+- basic review workflow
+- use of a 3D-capable rendering architecture
+- deliberate scope management
+
+---
+
+# 1. Technology Choice
+
+The project uses:
+
+- React
+- TypeScript
+- Vite
+- React Three Fiber
+- Three.js
+- Drei
+- Tailwind CSS
+
+## Why React
+
+React was required by the assignment and is also a natural fit for the interface surrounding the canvas.
+
+The toolbar, comment list, filters, thread UI, text inputs, and state transitions all map well to React's component and state model.
+
+## Why TypeScript
+
+TypeScript was required by the assignment.
+
+It is particularly useful in this project because there are several related state structures:
+
+- canvas tools
+- design elements
+- comment threads
+- replies
+- filters
+- positions
+
+For example, positions are consistently represented as:
+
+```ts
+[number, number, number]
+```
+
+rather than loosely structured objects.
+
+This reduces ambiguity when values are passed between the Three.js scene and the React interface.
+
+---
+
+# 2. Why React Three Fiber
+
+I chose React Three Fiber rather than building the entire canvas from absolutely positioned HTML elements or using a purely 2D canvas abstraction.
+
+React Three Fiber provides a React interface to Three.js.
+
+This means that even though the current prototype behaves largely like a 2D design canvas, the underlying content exists inside an actual 3D scene.
+
+That decision was influenced by the context of the assignment: Encube is building a visual collaboration platform with advanced 3D capabilities.
+
+The current prototype therefore has a more natural architectural path toward features such as:
 
 - 3D models
-- depth and perspective
-- annotations attached to 3D objects
-- spatial design review
-- richer scene interaction
+- object depth
+- perspective cameras
+- annotations attached to 3D geometry
+- model review
+- spatial comments
+- object selection
+- transformations
+- scene navigation
 
-For the current experience, I use an orthographic camera so the interaction still feels familiar to users of tools such as Figma or Miro.
+A DOM-only implementation could have fulfilled the immediate visual requirements, but it would demonstrate less about how the same interaction model could extend into Encube's product domain.
 
-## 2. Comments Use World Coordinates
+---
 
-Comment positions are stored in canvas/world coordinates rather than browser pixel coordinates.
+# 3. Orthographic Camera
 
-For example, a comment stores a position similar to:
+The Three.js scene uses an orthographic camera rather than a perspective camera.
+
+This was intentional.
+
+The current task is fundamentally a design-review canvas, so a perspective camera would add visual distortion without adding meaningful functionality.
+
+An orthographic camera gives the interface behavior closer to tools such as Figma or Miro:
+
+- objects do not become visually smaller because of depth
+- zoom behaves predictably
+- spatial relationships remain easy to understand
+- rectangular design elements remain visually flat
+
+At the same time, the application is still using a genuine Three.js scene.
+
+A future version could therefore introduce perspective views or switch between 2D-style and 3D navigation modes without replacing the entire rendering architecture.
+
+---
+
+# 4. Canvas Navigation
+
+The canvas supports:
+
+- panning
+- zooming
+- a live zoom indicator
+- resetting zoom to 100%
+
+Navigation is controlled through Drei's `MapControls`.
+
+Rotation is intentionally disabled.
+
+This leaves only the interactions relevant to the prototype:
+
+- move around the workspace
+- move closer or further away
+
+The zoom value shown in the toolbar is calculated relative to the initial camera zoom.
+
+The initial camera zoom is treated as:
+
+```text
+100%
+```
+
+This creates a more familiar representation for users than exposing the raw Three.js camera zoom value.
+
+Clicking the zoom percentage resets the camera zoom to its initial value.
+
+This is a small interaction, but it makes the canvas controls behave more like a finished product rather than a technical prototype.
+
+---
+
+# 5. Design Elements
+
+The canvas contains a small set of placeholder design elements.
+
+They are deliberately simple rectangular objects rather than detailed mockups.
+
+This was a scope decision.
+
+The design elements exist mainly to provide spatial content for:
+
+- canvas navigation
+- object manipulation
+- annotation placement
+- design review
+
+Spending substantial time designing realistic mock interfaces would not have materially improved the technical demonstration.
+
+## Individual object movement
+
+The design elements can be dragged independently.
+
+This creates an important distinction between two interactions:
+
+### Dragging empty canvas space
+
+Pans the camera.
+
+### Dragging a design element
+
+Moves that individual object.
+
+During an object drag, the camera controls are temporarily disabled.
+
+Without this, both the object and the camera can respond to the same pointer movement, which creates unpredictable interaction.
+
+Disabling camera controls during object manipulation creates a clear ownership model for the gesture.
+
+---
+
+# 6. Comment Placement
+
+Comments are placed using an explicit Comment tool.
+
+The tool can be activated through the toolbar or using the `C` keyboard shortcut.
+
+After a comment is placed, the application returns to Select mode.
+
+`Esc` exits Comment mode and closes the currently selected thread.
+
+## Why use an explicit Comment mode?
+
+It would have been possible to interpret every canvas click as a new comment.
+
+I deliberately avoided that interaction.
+
+A canvas click can potentially mean several things:
+
+- select something
+- begin dragging
+- pan
+- inspect an object
+- place an annotation
+
+Automatically creating comments from normal clicks would therefore make the interface prone to accidental annotations.
+
+An explicit Comment mode introduces one additional user action but removes that ambiguity.
+
+The keyboard shortcut keeps the workflow fast for frequent use.
+
+---
+
+# 7. World-Space Comment Coordinates
+
+One of the most important implementation decisions was storing annotation positions in scene coordinates rather than viewport coordinates.
+
+A comment stores a position such as:
 
 ```ts
 position: [x, y, z]
 ```
 
-rather than:
+The application does not store the comment using screen values such as:
 
 ```ts
-left: 400
-top: 250
+left: 420
+top: 280
 ```
 
-This is important because viewport coordinates change whenever the user pans or zooms.
+Viewport coordinates describe where something happens to appear on a user's screen.
 
-By anchoring comments to the Three.js scene, the annotation remains attached to the same logical point on the canvas regardless of camera movement.
+They do not describe where the annotation belongs in the canvas.
 
-This was one of the most important technical requirements of the exercise.
+If annotations were stored in viewport coordinates, moving or zooming the camera would separate the annotation from the content it was intended to reference.
 
-## 3. Explicit Comment Mode
+By storing world coordinates, comment markers stay at the same spatial location while the camera moves.
 
-I chose to require users to activate a Comment tool before placing a comment.
+This distinction between scene coordinates and viewport coordinates is one of the central technical concepts behind the prototype.
 
-Users can do this either through the toolbar or by pressing `C`.
+---
 
-Without an explicit mode, a normal canvas click could be interpreted as either navigation, selection, dragging, or comment creation. That would make accidental comments much more likely.
+# 8. Comments Attached to Design Elements
 
-The tradeoff is that placing a comment requires one additional action.
+There are two useful concepts for annotations in a spatial application:
 
-To reduce that friction:
+1. comments attached to the canvas
+2. comments attached to an object
 
-- `C` immediately activates Comment mode
-- the cursor changes to indicate comment placement
-- the application returns to Select mode after a comment is placed
-- `Esc` cancels Comment mode
+A comment placed on empty canvas space can remain anchored to a world-space position.
 
-## 4. Individual Design Elements Are Draggable
+A comment placed on a movable design element ideally needs a relationship to that element.
 
-The placeholder design elements can be repositioned independently rather than being purely static content.
+The lightweight implementation can represent that relationship using an optional element identifier:
 
-Dragging empty canvas space pans the camera, while dragging a design element moves that object.
+```ts
+elementId?: string
+```
 
-During an object drag, camera controls are temporarily disabled so the two interactions do not compete with each other.
+When the relevant element moves, the annotation can move by the same positional delta.
 
-This makes the canvas feel more like an actual visual collaboration tool while keeping the interaction implementation relatively small.
+This gives the expected interaction for the prototype:
 
-## 5. Orthographic Camera
+```text
+place comment on card
+        ↓
+move card
+        ↓
+comment follows card
+```
 
-I chose an orthographic camera instead of a perspective camera.
+## More robust production implementation
 
-The current product experience is primarily a design canvas, and an orthographic projection avoids perspective distortion when navigating between design elements.
+The delta-based approach is sufficient for simple translated rectangles, but it would not be the approach I would use for arbitrary production 3D objects.
 
-It also means that zooming behaves more like traditional 2D design software.
+A stronger model would store the annotation in the object's **local coordinate system**.
 
-At the same time, because everything is still rendered inside a Three.js scene, perspective or more advanced 3D camera modes could be introduced later if needed.
+For example:
 
-## 6. Client-Side State and localStorage
+```ts
+{
+  elementId: "object-42",
+  localPosition: [0.4, -0.2, 0.1]
+}
+```
 
-The assignment does not require a backend, so all state is managed locally in React.
+The renderer would then transform that local position into world space using the parent object's transformation matrix.
 
-Comments and design element positions are also persisted to `localStorage`.
+Conceptually:
 
-This provides two useful properties for the prototype:
+```text
+local annotation position
+          ↓
+object transform
+          ↓
+world position
+          ↓
+camera projection
+          ↓
+screen position
+```
 
-- refreshing the browser does not immediately destroy the review session
-- the implementation remains entirely client-side
+This becomes important when an object can:
 
-In a production environment, the same data structures could be synchronized with a backend and real-time collaboration layer.
+- rotate
+- scale
+- move through depth
+- belong to another transformed group
+- use arbitrary 3D geometry
 
-## 7. Simple Thread Model
+A local-coordinate approach would therefore be the natural next step for a more complete Encube-style implementation.
 
-A comment thread contains:
+---
 
-- the original comment
+# 9. Comment Pins and HTML UI
+
+The annotations are represented visually as numbered pins.
+
+The canvas itself is rendered using Three.js, while the annotation UI uses HTML projected into the scene.
+
+This provides a useful combination:
+
+Three.js controls the spatial position.
+
+HTML/CSS controls the interaction and styling.
+
+Using normal HTML for the comment marker allows familiar browser behavior for:
+
+- buttons
+- hover states
+- text
+- accessibility
+- CSS styling
+
+while its position remains connected to the 3D scene.
+
+---
+
+# 10. Comment Threads
+
+Each thread contains:
+
+- an ID
+- canvas position
 - author
-- creation time
+- timestamp
+- initial comment text
 - resolved state
 - replies
+- optionally, an associated design element
 
-Replies are represented as a flat list underneath the original message rather than recursively nested discussions.
+Replies are represented as a flat list beneath the original comment.
 
-This keeps the interaction simple and matches the lightweight design-review workflow required for the exercise.
+I intentionally did not implement recursively nested comments.
 
-Deep nested discussions could be added later, but I did not consider them necessary for this prototype.
+For a design-review workflow, the important abstraction is generally:
 
-## 8. Minimal State Management
+```text
+annotation
+  ↳ discussion
+```
 
-I used standard React state rather than adding Redux, Zustand, or another state-management library.
+rather than a deeply branching discussion tree.
 
-The application state is relatively small and currently includes:
+Recursive replies would add both state and interface complexity without materially improving this prototype.
+
+---
+
+# 11. Editing Comments
+
+The original comment text remains editable through the thread interface.
+
+This keeps the implementation simple while satisfying the requirement that comment text can be edited.
+
+A more complete system would likely distinguish between:
+
+- creating
+- editing
+- edited timestamps
+- ownership
+- edit permissions
+- deletion
+
+Those concerns were deliberately excluded from the prototype.
+
+---
+
+# 12. Resolve and Reopen
+
+Threads have a boolean resolved state.
+
+A resolved thread remains part of the canvas instead of being deleted.
+
+This reflects how design-review systems generally behave: resolving a discussion represents workflow state rather than removal of historical information.
+
+Resolved comments are also visually differentiated from active comments.
+
+Threads can be reopened if further discussion is necessary.
+
+---
+
+# 13. Comment Filtering
+
+The comment sidebar provides:
+
+- All
+- Open
+- Resolved
+
+The counts are derived directly from the current thread collection.
+
+Filtering only changes the list being displayed.
+
+It does not destroy or mutate thread state.
+
+This keeps the model straightforward and predictable.
+
+---
+
+# 14. Sidebar Interaction
+
+The sidebar acts as the primary discussion surface.
+
+Selecting a comment pin opens the corresponding thread.
+
+Selecting a thread in the list also makes that comment active.
+
+I chose a side panel instead of a floating popup because it gives replies and longer text a stable layout.
+
+This also keeps the canvas visually cleaner.
+
+A floating popover might work well for quick annotations, but it becomes less convenient once a thread contains several replies.
+
+---
+
+# 15. Client-Side Persistence
+
+The assignment explicitly states that no backend is required.
+
+For that reason, all application state remains client-side.
+
+Comments and design-element positions are stored in `localStorage`.
+
+This gives the prototype one useful quality beyond purely temporary React state:
+
+refreshing the page does not immediately erase the review session.
+
+It also demonstrates a basic persistence boundary without introducing unnecessary backend infrastructure.
+
+## Why not build a backend?
+
+A backend would introduce work around:
+
+- API design
+- database schema
+- hosting
+- network state
+- errors
+- authentication
+- synchronization
+
+None of those were necessary to demonstrate the interaction requested by the assignment.
+
+Given the limited time available, they would reduce the quality of the actual canvas experience.
+
+---
+
+# 16. State Management
+
+The prototype uses React's built-in state primitives:
+
+- `useState`
+- `useEffect`
+- `useRef`
+
+I intentionally did not introduce:
+
+- Redux
+- Zustand
+- MobX
+- another external global-state solution
+
+The amount of application state is still small enough that adding a state-management dependency would create more structure than value.
+
+The relevant state currently includes concepts such as:
 
 - active tool
 - comments
-- selected comment
-- filter
+- active thread
+- comment filter
 - reply draft
+- design elements
 - zoom level
-- design element positions
+- zoom reset state
 
-Introducing a larger state-management dependency would add complexity without providing much benefit at this scale.
+For a larger product, especially one with real-time collaboration, I would reconsider this decision.
 
-If the application grew to include multiplayer state, users, presence, larger scenes, and asynchronous server synchronization, I would reconsider this decision.
+---
 
-## 9. Scope Prioritization
+# 17. Why Most of the Implementation Is in `App.tsx`
 
-Given the limited implementation window, I prioritized the core interaction loop:
+For a production application, I would not keep this amount of functionality in a single component file.
 
-1. Navigate the canvas
-2. Move design elements
-3. Place a comment
-4. View the thread
-5. Reply
-6. Resolve or reopen the thread
-7. Filter comments
+The current implementation intentionally keeps much of the prototype in `App.tsx`.
 
-I intentionally did not implement:
-
-- authentication
-- multiplayer synchronization
-- presence indicators
-- backend persistence
-- permissions
-- notifications
-- complex 3D assets
-- deep nested replies
-- advanced animation
-- full mobile optimization
-
-These would be useful production features, but they were not necessary to demonstrate the primary product and technical concepts of the assignment.
-
-## What I Would Build Next
-
-With additional time, I would focus on:
-
-### Real-time collaboration
-
-Introduce shared state through a backend or real-time collaboration service so multiple users could see comments and object movement simultaneously.
-
-### Camera focus for comments
-
-Clicking a comment in the sidebar could smoothly pan the camera to the relevant canvas location.
-
-### Stronger annotation relationships
-
-Comments could optionally attach directly to a specific design or 3D object rather than only to a world-space position.
-
-### Richer design content
-
-The placeholder cards could be replaced by images, components, models, or imported 3D assets.
-
-### Presence
-
-Show active users and collaborator cursors to make the experience feel genuinely collaborative.
-
-### Improved state architecture
-
-As the feature set grows, I would separate the current prototype into dedicated canvas, comment, toolbar, persistence, and state-management modules.
-
-## Summary
-
-The main architectural decision was to build the prototype as a real Three.js scene while intentionally keeping the user experience similar to a familiar 2D collaboration tool.
-
-The most important technical detail is that annotations exist in the same world coordinate system as the canvas content.
-
-This allows comments to stay spatially anchored today while leaving the architecture open to more advanced 3D collaboration features in the future.
+This was a time-boxing decision rather than a recommenda
