@@ -515,4 +515,630 @@ For a production application, I would not keep this amount of functionality in a
 
 The current implementation intentionally keeps much of the prototype in `App.tsx`.
 
-This was a time-boxing decision rather than a recommenda
+This was a time-boxing decision rather than a recommendation for long-term architecture.
+
+The project was implemented within a short take-home window.
+
+Splitting every concern immediately into separate modules would require additional time for:
+
+- file creation
+- prop interfaces
+- exports
+- imports
+- shared type placement
+- state ownership decisions
+- refactoring while features were still changing rapidly
+
+During a fast prototype, keeping closely related logic together can make iteration substantially faster.
+
+It also reduced the chance of spending limited implementation time creating abstractions before the final shape of the feature was known.
+
+## How I would refactor it
+
+With additional development time, I would move toward a structure similar to:
+
+```text
+src/
+  components/
+    canvas/
+      CanvasViewport.tsx
+      Scene.tsx
+      DesignElement.tsx
+      CommentPin.tsx
+      CameraControls.tsx
+
+    comments/
+      CommentsPanel.tsx
+      CommentThread.tsx
+      CommentList.tsx
+      CommentFilters.tsx
+      ReplyComposer.tsx
+
+    toolbar/
+      Toolbar.tsx
+      ZoomControl.tsx
+
+  hooks/
+    useComments.ts
+    useCanvasElements.ts
+    useKeyboardShortcuts.ts
+    useLocalStorage.ts
+
+  types/
+    comments.ts
+    canvas.ts
+
+  data/
+    initialElements.ts
+
+  App.tsx
+```
+
+At that point, `App.tsx` would mainly compose the major sections and coordinate high-level state.
+
+I would perform this refactor after stabilizing the product behavior rather than before.
+
+---
+
+# 18. Why I Did Not Abstract Everything Immediately
+
+An early abstraction is useful only when the correct boundaries are reasonably clear.
+
+During development, several concepts changed rapidly:
+
+- comments became selectable
+- design elements became draggable
+- camera controls needed to be disabled during dragging
+- zoom state moved from static UI to camera-derived state
+- comments gained persistence
+- design elements gained persistence
+- annotations gained potential relationships with design elements
+
+Creating rigid abstractions before those interactions were understood would likely result in more refactoring rather than less.
+
+For this exercise, I prioritized making the complete interaction understandable first.
+
+---
+
+# 19. Styling
+
+Tailwind CSS is used for most interface styling.
+
+The visual system is deliberately restrained:
+
+- neutral canvas background
+- white toolbar and sidebar
+- simple borders
+- violet annotation state
+- minimal shadows
+- simple typography
+
+The purpose was to communicate hierarchy clearly without spending a disproportionate amount of the exercise on visual decoration.
+
+The project is intended to feel like a lightweight productivity tool rather than a marketing website.
+
+---
+
+# 20. Accessibility Considerations
+
+The prototype uses standard HTML buttons and text areas for much of the UI rather than rendering all controls directly into WebGL.
+
+This gives a better baseline for:
+
+- keyboard interaction
+- focus
+- semantic controls
+- text input
+- browser accessibility behavior
+
+There is still substantial accessibility work that would be required for production.
+
+Examples include:
+
+- more complete keyboard canvas navigation
+- screen-reader descriptions of canvas objects
+- focus management when threads open
+- accessible announcements when comments are added or resolved
+- stronger contrast validation
+- keyboard object movement
+
+---
+
+# 21. Performance Considerations
+
+The current canvas contains only a handful of objects and comments, so straightforward React state updates are sufficient.
+
+A production infinite canvas could contain thousands of objects and annotations.
+
+At that scale, I would investigate:
+
+- selective rendering
+- memoization
+- spatial indexing
+- viewport culling
+- instanced rendering
+- object virtualization
+- optimized shared state
+- avoiding whole-scene React updates
+- annotation clustering at low zoom levels
+
+React Three Fiber provides a useful foundation for optimizing rendering without giving up React for the rest of the application.
+
+---
+
+# 22. Infinite Canvas Scope
+
+The prototype represents an effectively large navigation surface rather than implementing mathematically unlimited coordinates.
+
+The invisible placement surface is intentionally much larger than the initial viewport.
+
+For the purposes of this exercise, this creates the expected infinite-canvas interaction.
+
+A production implementation might need to consider:
+
+- floating-point precision at very large distances
+- origin rebasing
+- dynamic content loading
+- spatial partitioning
+- extremely distant object handling
+
+Those concerns are unnecessary at this scale.
+
+---
+
+# 23. Responsive Design
+
+The prototype is primarily optimized for desktop.
+
+This was deliberate because the core interaction requires:
+
+- pointer manipulation
+- canvas navigation
+- side-panel discussion
+
+A production version would need additional behavior for smaller screens.
+
+Possible approaches include:
+
+- collapsible comments panel
+- bottom-sheet discussion UI
+- touch-specific pan and zoom
+- larger touch targets
+- gestures for object manipulation
+- responsive toolbars
+
+Mobile optimization was lower priority than completing the core desktop review experience.
+
+---
+
+# 24. Real-Time Collaboration
+
+The application is described as collaborative, but the exercise explicitly does not require a backend.
+
+The prototype therefore implements the **interaction model of a collaborative review system**, not networking between multiple active clients.
+
+The largest architectural addition for a real product would be synchronized shared state.
+
+Possible synchronization technologies could include:
+
+- WebSockets
+- a collaborative state service
+- CRDT-based systems
+- operational transformation
+- hosted collaboration infrastructure
+
+Shared state would need to include:
+
+- comments
+- replies
+- resolved status
+- element positions
+- active users
+- presence
+- potentially cursor positions
+
+---
+
+# 25. Concurrency
+
+Once multiple users can edit the same scene, several conflicts become possible.
+
+For example:
+
+- two users move the same element
+- two users edit the same comment
+- a thread is resolved while another user is replying
+- an object is deleted while it still has annotations
+
+These problems do not exist in the current client-only prototype.
+
+A production architecture would need explicit conflict-resolution rules.
+
+---
+
+# 26. User Identity
+
+The prototype uses a simple local author value such as:
+
+```text
+You
+```
+
+Authentication was intentionally excluded.
+
+A production system would associate comments with authenticated users and include:
+
+- user ID
+- name
+- avatar
+- permissions
+- organization/workspace membership
+
+Authorship should ultimately be based on trusted backend identity rather than client-generated values.
+
+---
+
+# 27. Permissions
+
+A production review system would likely require permissions such as:
+
+- view
+- comment
+- edit canvas
+- resolve comments
+- delete comments
+- manage project
+
+Those permissions are outside the scope of the current implementation.
+
+---
+
+# 28. Comment Notifications
+
+A real collaborative implementation would probably notify users when:
+
+- someone replies
+- they are mentioned
+- their comment is resolved
+- a thread they participated in changes
+
+Notifications were intentionally excluded because they depend on users, backend persistence, and asynchronous infrastructure.
+
+---
+
+# 29. Navigating to Comments
+
+One useful improvement would be camera navigation from the sidebar.
+
+Selecting a thread could automatically center or smoothly animate the camera toward that comment's position.
+
+This would become particularly valuable on a much larger canvas.
+
+The current implementation keeps selection simple and avoids introducing camera animation logic.
+
+---
+
+# 30. Selection Model
+
+The prototype only needs enough selection state to distinguish the active comment and object-drag gesture.
+
+A richer editor would likely introduce a formal selection model supporting:
+
+- selected design object
+- multiple selection
+- bounding boxes
+- hover state
+- transformation controls
+- keyboard manipulation
+
+This could become its own state domain rather than remaining implicit in pointer interactions.
+
+---
+
+# 31. Richer 3D Content
+
+The current rectangles are intentionally simple.
+
+A natural continuation of the prototype would be importing richer scene content such as:
+
+- GLTF / GLB models
+- images
+- UI mockups
+- meshes
+- CAD-derived geometry
+
+Annotations could then be placed on actual object surfaces through raycasting.
+
+That would more fully demonstrate the benefit of using a Three.js-based architecture.
+
+---
+
+# 32. Surface-Level 3D Annotations
+
+For a genuine 3D review workflow, an annotation should potentially capture more than an XYZ position.
+
+Useful information might include:
+
+- parent object ID
+- local-space point
+- surface normal
+- triangle or face reference
+- camera orientation at creation
+- model version
+
+This would allow annotations to remain meaningful even as the reviewer moves around a complex object.
+
+---
+
+# 33. Object Transformations
+
+The current design elements are translated through the canvas.
+
+Future object manipulation could include:
+
+- rotation
+- scaling
+- depth movement
+- snapping
+- alignment
+- grouping
+
+At that point, local-space annotations become substantially more important than world-position updates.
+
+---
+
+# 34. Persistence Architecture
+
+`localStorage` is useful for a prototype, but it would not be suitable as the authoritative data store for a collaborative product.
+
+A production implementation would likely split state into:
+
+### Server-persisted state
+
+- comments
+- replies
+- resolved status
+- design object state
+
+### Ephemeral collaborative state
+
+- cursor position
+- active tool
+- selected object
+- camera position
+- user presence
+
+Not all collaborative information needs permanent storage.
+
+---
+
+# 35. Error Handling
+
+Because the prototype is fully local, there are few network failure states.
+
+Adding a backend would require UI for:
+
+- failed comment submission
+- lost connection
+- reconnection
+- conflicting edits
+- authorization errors
+- stale document versions
+
+These states would be important product considerations in a real implementation.
+
+---
+
+# 36. Data Validation
+
+The prototype trusts the locally generated data.
+
+A backend implementation should validate:
+
+- comment length
+- valid object IDs
+- coordinates
+- permissions
+- author identity
+- thread state transitions
+
+Client validation should improve UX, while server validation should enforce correctness.
+
+---
+
+# 37. Testing Strategy
+
+Given the limited implementation window, I prioritized manual verification of the complete user workflow.
+
+The most important behaviors to test are:
+
+1. canvas pans correctly
+2. zoom changes smoothly
+3. zoom percentage updates
+4. zoom can reset
+5. individual elements move independently
+6. camera does not pan while an element is being dragged
+7. Comment mode activates correctly
+8. comments can be placed on canvas space
+9. comments can be placed on design elements
+10. annotations remain correctly positioned during camera navigation
+11. threads can be selected
+12. text can be edited
+13. replies can be added
+14. threads can be resolved
+15. resolved threads can be reopened
+16. filtering behaves correctly
+17. state survives a refresh
+18. the production build completes successfully
+
+With more development time, I would add automated tests around the state logic and component interaction.
+
+---
+
+# 38. Deployment
+
+The project is built using Vite and deployed as a static site.
+
+Because GitHub Pages hosts project repositories under a repository-specific path rather than the root domain, Vite requires the repository path to be configured as its build base.
+
+The deployed version must also publish the generated `dist` directory rather than the TypeScript source repository itself.
+
+A GitHub Actions deployment workflow is therefore used to:
+
+1. check out the repository
+2. install dependencies
+3. build the Vite application
+4. upload `dist`
+5. publish the generated site to GitHub Pages
+
+This deployment structure keeps hosting simple and appropriate for a client-only prototype.
+
+---
+
+# 39. Scope Tradeoffs
+
+The primary constraint on the implementation was time.
+
+I intentionally chose completeness of the main workflow over implementing many partially finished features.
+
+The main loop was prioritized as:
+
+```text
+navigate canvas
+      ↓
+move content
+      ↓
+place annotation
+      ↓
+write comment
+      ↓
+reply
+      ↓
+resolve
+      ↓
+filter
+```
+
+This meant deliberately not spending substantial implementation time on features such as:
+
+- authentication
+- backend APIs
+- networking
+- polished mock designs
+- complex animation
+- recursive discussions
+- sophisticated state-management infrastructure
+- deep component abstractions
+- production-grade responsive behavior
+
+---
+
+# 40. Further Development
+
+Given more time, I would continue development roughly in this order.
+
+## 1. Refactor application structure
+
+The first step would be separating `App.tsx` into clear canvas, comments, toolbar, state, and persistence modules.
+
+The current single-file structure was useful for rapid iteration, but modularization would improve maintainability as soon as the behavior stabilizes.
+
+## 2. Replace delta-based annotation attachment with local coordinates
+
+Annotations attached to design objects would store their position relative to the parent object's coordinate system.
+
+This would make attachments robust to:
+
+- translation
+- rotation
+- scaling
+- parent transforms
+
+## 3. Camera navigation to annotations
+
+Selecting a comment from the sidebar would center or animate the camera toward that annotation.
+
+## 4. Real-time collaboration
+
+Move shared state out of `localStorage` and into a synchronized collaboration layer.
+
+## 5. Presence
+
+Add:
+
+- user cursors
+- active collaborators
+- selection indicators
+- potentially camera/frustum awareness
+
+## 6. Richer 3D assets
+
+Support actual models and allow raycast-based comments directly on mesh surfaces.
+
+## 7. Better object manipulation
+
+Introduce:
+
+- selection states
+- transform handles
+- multi-select
+- snap/alignment behavior
+- keyboard movement
+
+## 8. Comment UX
+
+Extend discussion functionality with:
+
+- edit history
+- delete
+- mentions
+- reactions
+- richer timestamps
+- notifications
+- assigned reviewers
+
+## 9. Backend persistence and history
+
+Store document state remotely and preserve:
+
+- revisions
+- authorship
+- activity history
+- model/document versions
+
+## 10. Responsive and touch interfaces
+
+Design a dedicated mobile/tablet interaction model rather than merely shrinking the desktop interface.
+
+---
+
+# 41. What I Would Keep
+
+Not every prototype decision would need to be replaced.
+
+Several choices would remain appropriate as the application grew:
+
+- React for surrounding product UI
+- TypeScript
+- Three.js / React Three Fiber for spatial content
+- an orthographic review mode
+- world/local coordinate-based annotation placement
+- explicit interaction modes
+- standard HTML UI for comment composition
+- comments as persistent threads rather than disposable popovers
+
+---
+
+# 42. Final Reflection
+
+The main technical idea behind the implementation is that canvas content and annotations should exist in a meaningful spatial coordinate system rather than being positioned relative to the browser viewport.
+
+That allows the interface to behave correctly as users navigate the canvas and provides a foundation for object-relative annotations and more sophisticated 3D workflows.
+
+The main product decision was to keep navigation, object manipulation, and commenting understandable as separate interactions rather than trying to infer too many intentions from the same pointer gesture.
+
+The implementation deliberately favors a complete and understandable prototype over premature production architecture.
+
+Given the short implementation window, keeping the core code close together made iteration faster. Given more time, the next engineering step would be to retain the same data and interaction model while separating the implementation into dedicated components, hooks, and state domains.
+
+The resulting prototype is therefore intended to demonstrate both the immediate review workflow and a direction in which that workflow could evolve into a richer collaborative 3D product.
