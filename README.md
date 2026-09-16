@@ -12,7 +12,7 @@
 Clone the repository and move into the project directory:
 
 ```bash
-git clone <REPOSITORY_URL>
+git clone https://github.com/CarloBarone-info/encube-take-home-test.git
 cd encube-take-home-test
 ```
 
