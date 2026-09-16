@@ -19,6 +19,7 @@ type Reply = {
 type CommentThread = {
   id: string;
   position: [number, number, number];
+  elementId?: string;
   author: string;
   text: string;
   createdAt: string;
@@ -69,12 +70,22 @@ const INITIAL_ELEMENTS: DesignElement[] = [
 
 function ZoomTracker({
   onZoomChange,
+  resetZoomKey,
 }: {
   onZoomChange: (zoom: number) => void;
+  resetZoomKey: number;
 }) {
   const camera = useThree((state) => state.camera) as OrthographicCamera;
 
   const previousZoom = useRef(camera.zoom);
+
+  useEffect(() => {
+    camera.zoom = INITIAL_ZOOM;
+    camera.updateProjectionMatrix();
+
+    previousZoom.current = INITIAL_ZOOM;
+    onZoomChange(100);
+  }, [resetZoomKey, camera, onZoomChange]);
 
   useFrame(() => {
     if (Math.abs(camera.zoom - previousZoom.current) < 0.01) {
@@ -101,7 +112,10 @@ function Card({
 }: {
   element: DesignElement;
   tool: Tool;
-  onAddComment: (position: [number, number, number]) => void;
+  onAddComment: (
+    position: [number, number, number],
+    elementId?: string,
+  ) => void;
   onMove: (id: string, position: [number, number, number]) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -139,7 +153,7 @@ function Card({
 
     event.stopPropagation();
 
-    onAddComment([event.point.x, event.point.y, 0.35]);
+    onAddComment([event.point.x, event.point.y, 0.35], element.id);
   }
 
   return (
@@ -202,7 +216,10 @@ function PlacementPlane({
   onAddComment,
 }: {
   tool: Tool;
-  onAddComment: (position: [number, number, number]) => void;
+  onAddComment: (
+    position: [number, number, number],
+    elementId?: string,
+  ) => void;
 }) {
   function handleClick(event: ThreeEvent<MouseEvent>) {
     if (tool !== "comment") return;
@@ -230,21 +247,26 @@ function Scene({
   onSelectComment,
   onZoomChange,
   onMoveElement,
+  resetZoomKey,
 }: {
   tool: Tool;
   comments: CommentThread[];
   selectedId: string | null;
   designElements: DesignElement[];
-  onAddComment: (position: [number, number, number]) => void;
+  onAddComment: (
+    position: [number, number, number],
+    elementId?: string,
+  ) => void;
   onSelectComment: (id: string) => void;
   onZoomChange: (zoom: number) => void;
   onMoveElement: (id: string, position: [number, number, number]) => void;
+  resetZoomKey: number;
 }) {
   const [draggingElement, setDraggingElement] = useState(false);
 
   return (
     <>
-      <ZoomTracker onZoomChange={onZoomChange} />
+      <ZoomTracker onZoomChange={onZoomChange} resetZoomKey={resetZoomKey} />
 
       <ambientLight intensity={2} />
 
@@ -292,6 +314,8 @@ function formatTime(date: string) {
 
 export default function App() {
   const [tool, setTool] = useState<Tool>("select");
+
+  const [resetZoomKey, setResetZoomKey] = useState(0);
 
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -359,12 +383,13 @@ export default function App() {
     };
   }, []);
 
-  function addComment(position: [number, number, number]) {
+  function addComment(position: [number, number, number], elementId?: string) {
     const id = crypto.randomUUID();
 
     const newComment: CommentThread = {
       id,
       position,
+      elementId,
       author: "You",
       text: "",
       createdAt: new Date().toISOString(),
@@ -432,14 +457,39 @@ export default function App() {
   }
 
   function moveElement(id: string, position: [number, number, number]) {
+    const element = designElements.find((item) => item.id === id);
+
+    if (!element) return;
+
+    const deltaX = position[0] - element.position[0];
+
+    const deltaY = position[1] - element.position[1];
+
+    const deltaZ = position[2] - element.position[2];
+
     setDesignElements((current) =>
-      current.map((element) =>
-        element.id === id
+      current.map((item) =>
+        item.id === id
           ? {
-              ...element,
+              ...item,
               position,
             }
-          : element,
+          : item,
+      ),
+    );
+
+    setComments((current) =>
+      current.map((comment) =>
+        comment.elementId === id
+          ? {
+              ...comment,
+              position: [
+                comment.position[0] + deltaX,
+                comment.position[1] + deltaY,
+                comment.position[2] + deltaZ,
+              ],
+            }
+          : comment,
       ),
     );
   }
@@ -523,9 +573,14 @@ export default function App() {
             Clear comments
           </button>
 
-          <span className="text-sm tabular-nums text-neutral-500">
+          <button
+            type="button"
+            onClick={() => setResetZoomKey((current) => current + 1)}
+            title="Reset zoom to 100%"
+            className="cursor-pointer text-sm tabular-nums text-neutral-500 hover:text-neutral-900"
+          >
             {zoomLevel}%
-          </span>
+          </button>
         </div>
       </header>
 
@@ -553,6 +608,7 @@ export default function App() {
               onSelectComment={setSelectedId}
               onZoomChange={setZoomLevel}
               onMoveElement={moveElement}
+              resetZoomKey={resetZoomKey}
             />
           </Canvas>
 

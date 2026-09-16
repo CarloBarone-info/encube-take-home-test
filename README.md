@@ -157,4 +157,4 @@ A deployment can be found at [this URL](https://carlobarone-info.github.io/encub
 
 ## Video Walkthrough
 
-A walktrough video can be found unlisted on my personal YouTube Channel, at [this link]()
+A walktrough video can be found unlisted on my personal YouTube Channel, at [this link](https://www.strecka.nu)
