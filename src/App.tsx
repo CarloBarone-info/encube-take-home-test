@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import { Html, MapControls } from "@react-three/drei";
@@ -14,8 +14,6 @@ type Reply = {
   createdAt: string;
 };
 
-const INITIAL_ZOOM = 70;
-
 type CommentThread = {
   id: string;
   position: [number, number, number];
@@ -25,6 +23,8 @@ type CommentThread = {
   resolved: boolean;
   replies: Reply[];
 };
+
+const INITIAL_ZOOM = 70;
 
 function Card({
   position,
@@ -224,10 +224,50 @@ function formatTime(date: string) {
 export default function App() {
   const [tool, setTool] = useState<Tool>("select");
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [comments, setComments] = useState<CommentThread[]>([]);
+  const [comments, setComments] = useState<CommentThread[]>(() => {
+    const saved = localStorage.getItem("encube-comments");
+
+    if (!saved) return [];
+
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return [];
+    }
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [replyDraft, setReplyDraft] = useState("");
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+
+      const isTyping =
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+
+      if (isTyping) return;
+
+      if (event.key.toLowerCase() === "c") {
+        setTool("comment");
+      }
+
+      if (event.key === "Escape") {
+        setTool("select");
+        setSelectedId(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("encube-comments", JSON.stringify(comments));
+  }, [comments]);
 
   function addComment(position: [number, number, number]) {
     const id = crypto.randomUUID();
@@ -368,8 +408,8 @@ export default function App() {
 
           <div className="pointer-events-none absolute bottom-4 left-4 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-500 shadow-sm">
             {tool === "comment"
-              ? "Click anywhere to add a comment"
-              : "Drag to pan · Scroll to zoom"}
+              ? "Click anywhere to add a comment · Esc to cancel"
+              : "Drag to pan · Scroll to zoom · C to comment"}
           </div>
         </main>
 
