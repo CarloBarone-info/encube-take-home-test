@@ -38,7 +38,7 @@ Make sure you have Node.js and npm installed.
 Clone the repository:
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
+git clone https://github.com/CarloBarone-info/encube-take-home-test.git
 ```
 
 Navigate into the project:
@@ -153,12 +153,8 @@ Features that would be natural next steps in a production version include:
 
 ## Live Demo
 
-A deployment can be found at [this URL](www.strecka.nu)
+A deployment can be found at [this URL](https://carlobarone-info.github.io/encube-take-home-test/)
 
 ## Video Walkthrough
 
-Add walkthrough URL here:
-
-```text
-<YOUR_VIDEO_URL>
-```
+A walktrough video can be found unlisted on my personal YouTube Channel, at [this link]()
